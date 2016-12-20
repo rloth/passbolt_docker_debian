@@ -9,8 +9,6 @@ services:
     build: ./passbolt_image
     env_file: .env
     environment:
-      # seems important but where is it used ?
-      - APP_URL=http://0.0.0.0
       # runtime conf straight from ./.env
       - MYSQL_HOST=$MYSQL_HOST
       - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
@@ -20,6 +18,8 @@ services:
       - ADMIN_USERNAME=$ADMIN_USERNAME
       - ADMIN_FIRST_NAME=$ADMIN_FIRST_NAME
       - ADMIN_LAST_NAME=$ADMIN_LAST_NAME
+      # previously used but replaced by MY_PREFIX=`hostname -i` in entry-point
+      # - APP_URL=http://0.0.0.0
     # external volume ./data for containers' mysql data
     volumes:
      - ./data:/var/lib/mysql
