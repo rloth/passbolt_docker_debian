@@ -17,6 +17,7 @@ RUN apt-get clean && apt-get update && apt-get install -y \
     autoconf file g++ gcc libc-dev make pkg-config re2c \
     # persistance
     redis-server mysql-server-5.5 \
+    # redis-server mysql-client    <= if external mysql \
     # php \
     php5-json php5-cli php5-common \
     php5-curl php5-dev php5-gd php5-mcrypt \
@@ -76,27 +77,42 @@ RUN rm -f /etc/apache2/sites-enabled/* \
 RUN echo "memory_limit=256M" > /etc/php5/apache2/conf.d/20-memory-limit.ini \
     && echo "memory_limit=256M" > /etc/php5/cli/conf.d/20-memory-limit.ini
 
-# Install composer
-RUN curl -sS https://getcomposer.org/installer | php \
-    && mv composer.phar /usr/local/bin/composer
-
-# Special hack for macosx, to let www-data able to write on mounted volumes.
-# See docker bug: https://github.com/boot2docker/boot2docker/issues/581.
-RUN usermod -u 1000 www-data \
-    && usermod -a -G staff www-data \
-    && chown -Rf www-data:www-data /var/www/
-
-# Generate the gpg server key
-ADD /conf/gpg_server_key_public.key /home/www-data/gpg_server_key_public.key
-ADD /conf/gpg_server_key_private.key /home/www-data/gpg_server_key_private.key
-
-# fcron
+# make and install fcron
 ADD ./fcron-3.2.0 /usr/local/fcron
 RUN cd /usr/local/fcron; ./configure --with-editor=/usr/bin/nano \
 	&& cd /usr/local/fcron; make \
 	&& cd /usr/local/fcron; make install
 
+# Install composer
+RUN curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer
+
+# clone us the app itself...
+RUN git clone https://github.com/passbolt/passbolt_api /var/www/passbolt
+
+# .. or copy it
+# RUN mkdir /var/www/passbolt
+# COPY passbolt_api /var/www/passbolt
+
+# simple permissions setup
+RUN chown -Rf www-data:www-data /var/www/
+
+RUN echo "updating keys again"
+# Generate the gpg server key
+ADD /conf/gpg_server_key_public.key /home/www-data/gpg_server_key_public.key
+ADD /conf/gpg_server_key_private.key /home/www-data/gpg_server_key_private.key
+
+# our new version doesn't use launch-container but docker-compose
+# so we integrate conf.sh here to run *after* container boot
+# => values in conf.sh will overwrite any values passed in env
+ADD /conf/conf.sh /conf.sh
+
+# entrypoint
 ADD /entry-point.sh /entry-point.sh
 RUN chmod 0755 /entry-point.sh
 
 CMD ["bash", "/entry-point.sh"]
+
+EXPOSE 8081
+EXPOSE 443
+EXPOSE 80
