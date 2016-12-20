@@ -6,43 +6,57 @@
 ########################################################
 
 IS_MYSQL_LOCAL=1
-echo "en début de entry-point, VAR_DE_TEST => $VAR_DE_TEST"
-echo "en début de entry-point, MYSQL_HOST => $MYSQL_HOST"
+# echo "en début de entry-point, MYSQL_HOST => $MYSQL_HOST"
 if [ "$MYSQL_HOST" != "localhost" ]; then
     IS_MYSQL_LOCAL=0
 fi
 
-# If Mysql is local (no persistence), we reset everything and create the database.
+# If Mysql is local (persistence via volume pointing on /var/lib/mysql), we check if the generic mysql database exists, otherwise reconfigure and create the database.
 
 if [ $IS_MYSQL_LOCAL == 1 ]; then
-    # THIS PART RELIES ON NON-SET VARS MYSQL_USERNAME AND MYSQL_PASSWORD
     echo "using local mysql"
-    echo "Resetting root password, and create user ${MYSQL_USERNAME}"
-    # Start mysql
-    service mysql start
-    # Change password of database
-mysql --host=localhost --user=root --password=root << EOSQL
-    SET @@SESSION.SQL_LOG_BIN=0;
-    SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${MYSQL_ROOT_PASSWORD}');
-    GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION ;
-    DROP DATABASE IF EXISTS test ;
-    FLUSH PRIVILEGES ;
+    chown -R mysql:mysql /var/lib/mysql
+
+    echo "testing if database exists"
+
+    if [ -f /var/lib/mysql/ibdata1 ]; then
+        echo "there is already a database in /var/lib/mysql => no initialization"
+        # Start mysql
+        service mysql start
+    else
+        echo "there is no database in /var/lib/mysql => initializing!!"
+
+        # recreate empty default DB
+        dpkg-reconfigure mysql-server-5.5
+
+        # Start mysql
+        service mysql start
+
+        echo "Setting root password, and create user ${MYSQL_USERNAME}"
+        # Change password of database
+        mysql --host=localhost --user=root<< EOSQL
+        SET @@SESSION.SQL_LOG_BIN=0;
+        SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${MYSQL_ROOT_PASSWORD}');
+        GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION ;
+        DROP DATABASE IF EXISTS test ;
+        FLUSH PRIVILEGES ;
 EOSQL
 
-    # Create the passbolt database
-    echo "Create database ${MYSQL_DATABASE}"
-    mysql -u "root" --password="${MYSQL_ROOT_PASSWORD}" -e "create database ${MYSQL_DATABASE}"
-    echo "Create user ${MYSQL_USERNAME} and give access to ${MYSQL_DATABASE}"
-    mysql -u "root" --password="${MYSQL_ROOT_PASSWORD}" -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* To '${MYSQL_USERNAME}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}'"
-    echo "flush privileges"
-    mysql -u "root" --password="${MYSQL_ROOT_PASSWORD}" -e "FLUSH PRIVILEGES"
+        # Create the passbolt database
+        echo "Create database ${MYSQL_DATABASE}"
+        mysql -u "root" --password="${MYSQL_ROOT_PASSWORD}" -e "create database ${MYSQL_DATABASE}"
+        echo "Create user ${MYSQL_USERNAME} and give access to ${MYSQL_DATABASE}"
+        mysql -u "root" --password="${MYSQL_ROOT_PASSWORD}" -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* To '${MYSQL_USERNAME}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}'"
+        echo "flush privileges"
+        mysql -u "root" --password="${MYSQL_ROOT_PASSWORD}" -e "FLUSH PRIVILEGES"
+    fi
 
 # If Mysql is on a different host, check if the database exists.
 else
     # THIS PART WORKS FINE WITH A COMPOSED mysql IMAGE
     echo "using remote mysql"
 
-    wait for mysql container
+    # wait for mysql container
     while ! mysql -h $MYSQL_HOST  -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW DATABASES ;"
       do
         sleep 2

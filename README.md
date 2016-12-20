@@ -34,7 +34,7 @@ If you don't configure a smtp server, emails notifications won't be sent. User w
 
 3) You can build and run the container.
 ```
-	docker build -t passbolt_image image/
+	docker-compose up
 ```
 If a smtp server has been configured you will receive a registration email at the email you defined in the .env file.
 

@@ -1,5 +1,9 @@
 FROM debian:jessie
 
+ENV TERM=xterm
+
+VOLUME /var/lib/mysql
+
 # mysql before installation configuration
 RUN export DEBIAN_FRONTEND="noninteractive" \
     && echo "mysql-server mysql-server/root_password password root" | debconf-set-selections \
@@ -40,7 +44,7 @@ RUN mkdir /home/www-data/ \
     && usermod -d /home/www-data www-data
 
 # Configure node and install grunt
-# On debian they choose to rename node in nodejs, some tools try to access nodejs by using the commande noe.
+# On debian they choose to rename node in nodejs, some tools try to access nodejs by using the commande node.
 RUN ln -s /usr/bin/nodejs /usr/bin/node \
     # install grunt
     && npm install -g grunt-cli
@@ -101,11 +105,6 @@ RUN echo "updating keys again"
 # Generate the gpg server key
 ADD /conf/gpg_server_key_public.key /home/www-data/gpg_server_key_public.key
 ADD /conf/gpg_server_key_private.key /home/www-data/gpg_server_key_private.key
-
-# our new version doesn't use launch-container but docker-compose
-# so we integrate conf.sh here to run *after* container boot
-# => values in conf.sh will overwrite any values passed in env
-ADD /conf/conf.sh /conf.sh
 
 # entrypoint
 ADD /entry-point.sh /entry-point.sh
