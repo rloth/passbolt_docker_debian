@@ -25,7 +25,7 @@ if [ $IS_MYSQL_LOCAL == 1 ]; then
         service mysql start
     else
         echo "there is no database in /var/lib/mysql => initializing!!"
-
+        export DEBIAN_FRONTEND="noninteractive"
         # recreate empty default DB
         dpkg-reconfigure mysql-server-5.5
 
