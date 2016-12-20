@@ -20,7 +20,6 @@ services:
       - ADMIN_USERNAME=$ADMIN_USERNAME
       - ADMIN_FIRST_NAME=$ADMIN_FIRST_NAME
       - ADMIN_LAST_NAME=$ADMIN_LAST_NAME
-      - VAR_DE_TEST=$ANOTHER_TEST_VAR
     # external volume ./data for containers' mysql data
     volumes:
      - ./data:/var/lib/mysql
